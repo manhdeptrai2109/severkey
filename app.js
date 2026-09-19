@@ -5,7 +5,7 @@ const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
 
 // Chú thích: URL Worker Cloudflare
-const API_ADD = "https://severkey.pretty-pilot.workers.dev/add";
+const API_ADD = "https://tmanhios.pretty-pilot.workers.dev/add";
 
 let currentIP = "unknown";
 
