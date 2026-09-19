@@ -19,6 +19,18 @@ const DURATION_MAP = {
 };
 
 // ============================================================
+// Chú thích: SUY DURATION TỪ PREFIX KEY
+// ============================================================
+function durationFromKey(key) {
+    if (key.startsWith("TManhios-1hour-"))   return 3600000;
+    if (key.startsWith("TManhios-1day-"))    return 86400000;
+    if (key.startsWith("TManhios-7day-"))    return 604800000;
+    if (key.startsWith("TManhios-1month-"))  return 2592000000;
+    if (key.startsWith("TManhios-forever-")) return 0;
+    return 86400000;
+}
+
+// ============================================================
 // Chú thích: GỬI KEY LÊN WORKER
 // ============================================================
 async function uploadKeyToServer(key) {
@@ -53,7 +65,7 @@ async function deleteKeyFromServer(key) {
 }
 
 // ============================================================
-// Chú thích: LẤY DANH SÁCH KEY TỪ WORKER (để đồng bộ)
+// Chú thích: LẤY DANH SÁCH KEY TỪ WORKER
 // ============================================================
 async function fetchServerKeys() {
     try {
@@ -208,7 +220,8 @@ $btnGen.addEventListener("click", async () => {
                 key: k,
                 ip: currentIP,
                 duration: dur,
-                activatedAt: null,   // Chú thích: chưa kích hoạt
+                activatedAt: null,
+                hwid: null,
                 createdAt: now
             });
             added++;
@@ -244,13 +257,12 @@ $btnClear.addEventListener("click", () => {
 });
 
 // ============================================================
-// Chú thích: ĐẾM NGƯỢC (theo activatedAt)
+// Chú thích: ĐẾM NGƯỢC
 // ============================================================
 function formatRemain(item) {
-    // Chú thích: nếu chưa có activatedAt → chưa ai dùng
     if (!item.activatedAt) return "CHƯA DÙNG";
 
-    const duration = item.duration || 0;
+    const duration = item.duration || durationFromKey(item.key);
     if (duration === 0) return "∞";
 
     const expiresAt = item.activatedAt + duration;
@@ -287,14 +299,15 @@ function renderTable(filter = "") {
         const tdKey = document.createElement("td"); tdKey.className = "key-cell"; tdKey.textContent = item.key;
         const tdIp = document.createElement("td"); tdIp.textContent = item.ip || "unknown";
         const tdType = document.createElement("td"); tdType.className = "type-cell";
-        tdType.textContent = getDurationInfo(item.duration || 0).label;
+        const itemDuration = item.duration || durationFromKey(item.key);
+        tdType.textContent = getDurationInfo(itemDuration).label;
         const tdCreated = document.createElement("td"); tdCreated.textContent = formatTime(item.createdAt);
 
         const tdRemain = document.createElement("td");
         tdRemain.textContent = formatRemain(item);
         if (!item.activatedAt) tdRemain.className = "not-used";
-        else if (item.duration === 0) tdRemain.className = "permanent";
-        else if (item.activatedAt + item.duration - Date.now() <= 0) tdRemain.className = "expired";
+        else if (itemDuration === 0) tdRemain.className = "permanent";
+        else if (item.activatedAt + itemDuration - Date.now() <= 0) tdRemain.className = "expired";
         else tdRemain.className = "active";
 
         const tdAct = document.createElement("td");
@@ -342,9 +355,16 @@ async function syncWithServer() {
     serverKeys.forEach(sk => { serverMap[sk.key] = sk; });
 
     let updated = 0;
+    let added = 0;
+
+    // Chú thích: cập nhật key đã có trong localStorage
     store.forEach(item => {
         const sk = serverMap[item.key];
         if (!sk) return;
+
+        if (!item.duration) {
+            item.duration = durationFromKey(item.key);
+        }
 
         if (sk.activatedAt && sk.activatedAt !== item.activatedAt) {
             item.activatedAt = sk.activatedAt;
@@ -355,13 +375,28 @@ async function syncWithServer() {
         }
     });
 
+    // Chú thích: thêm key từ server chưa có local
+    serverKeys.forEach(sk => {
+        if (!store.some(x => x.key === sk.key)) {
+            store.push({
+                key: sk.key,
+                ip: sk.ip || "unknown",
+                duration: durationFromKey(sk.key),
+                activatedAt: sk.activatedAt || null,
+                hwid: sk.hwid || null,
+                createdAt: sk.createdAt || Date.now()
+            });
+            added++;
+        }
+    });
+
     saveStore(store);
     renderTable($search.value);
-    alert(`Đã đồng bộ ${updated} key`);
+    alert(`Đã cập nhật ${updated} key, thêm ${added} key từ server`);
 }
 
 // ============================================================
-// Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM / ĐỒNG BỘ
+// Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM
 // ============================================================
 $btnReload.addEventListener("click", async () => {
     await syncWithServer();
