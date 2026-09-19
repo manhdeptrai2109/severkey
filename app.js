@@ -1,5 +1,4 @@
-// Chú thích: app.js - toàn bộ logic web TManhios
-// Bao gồm: sinh key + gửi Worker + xóa Worker + đồng bộ + admin panel
+// Chú thích: app.js - web admin TManhios + tự động đồng bộ 10s
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
@@ -7,6 +6,8 @@ const STORAGE_KEY = "tmanhios_keys";
 const API_ADD    = "https://tmanhios.pretty-pilot.workers.dev/add";
 const API_DELETE = "https://tmanhios.pretty-pilot.workers.dev/delete";
 const API_LIST   = "https://tmanhios.pretty-pilot.workers.dev/list";
+
+const SYNC_INTERVAL = 10000; // Chú thích: 10 giây
 
 let currentIP = "unknown";
 
@@ -164,6 +165,7 @@ const $keyBody     = document.getElementById("key-body");
 const $total       = document.getElementById("total");
 
 let totalCount = 0;
+let syncRunning = false;
 
 // ============================================================
 // Chú thích: CHUYỂN TAB
@@ -175,11 +177,12 @@ $tabGen.addEventListener("click", () => {
     $viewAdmin.style.display = "none";
 });
 
-$tabAdmin.addEventListener("click", () => {
+$tabAdmin.addEventListener("click", async () => {
     $tabAdmin.classList.add("active");
     $tabGen.classList.remove("active");
     $viewGen.style.display = "none";
     $viewAdmin.style.display = "";
+    await syncWithServer(true);
     renderTable($search.value);
 });
 
@@ -342,64 +345,83 @@ function renderTable(filter = "") {
 
 // ============================================================
 // Chú thích: ĐỒNG BỘ VỚI WORKER
+// silent = true → không alert
 // ============================================================
-async function syncWithServer() {
-    const serverKeys = await fetchServerKeys();
-    if (!serverKeys) {
-        alert("Đồng bộ thất bại — kiểm tra kết nối");
-        return;
+async function syncWithServer(silent = false) {
+    if (syncRunning) return;
+    syncRunning = true;
+
+    try {
+        const serverKeys = await fetchServerKeys();
+        if (!serverKeys) {
+            if (!silent) alert("Đồng bộ thất bại — kiểm tra kết nối");
+            syncRunning = false;
+            return;
+        }
+
+        const store = loadStore();
+        const serverMap = {};
+        serverKeys.forEach(sk => { serverMap[sk.key] = sk; });
+
+        let updated = 0;
+        let added = 0;
+        let removed = 0;
+
+        // Chú thích: cập nhật key đã có
+        store.forEach(item => {
+            const sk = serverMap[item.key];
+            if (!sk) return;
+
+            if (!item.duration) {
+                item.duration = durationFromKey(item.key);
+            }
+
+            // Chú thích: ghi đè activatedAt nếu Worker có
+            if (sk.activatedAt && item.activatedAt !== sk.activatedAt) {
+                item.activatedAt = sk.activatedAt;
+                updated++;
+            }
+            if (sk.hwid && item.hwid !== sk.hwid) {
+                item.hwid = sk.hwid;
+            }
+        });
+
+        // Chú thích: thêm key mới từ Worker chưa có local
+        serverKeys.forEach(sk => {
+            if (!store.some(x => x.key === sk.key)) {
+                store.push({
+                    key: sk.key,
+                    ip: sk.ip || "unknown",
+                    duration: durationFromKey(sk.key),
+                    activatedAt: sk.activatedAt || null,
+                    hwid: sk.hwid || null,
+                    createdAt: sk.createdAt || Date.now()
+                });
+                added++;
+            }
+        });
+
+        // Chú thích: xóa key local đã bị xóa trên Worker
+        const before = store.length;
+        const filtered = store.filter(item => serverMap[item.key]);
+        removed = before - filtered.length;
+
+        saveStore(filtered);
+        renderTable($search.value);
+
+        if (!silent && (updated > 0 || added > 0 || removed > 0)) {
+            console.log(`[SYNC] updated=${updated} added=${added} removed=${removed}`);
+        }
+    } finally {
+        syncRunning = false;
     }
-
-    const store = loadStore();
-    const serverMap = {};
-    serverKeys.forEach(sk => { serverMap[sk.key] = sk; });
-
-    let updated = 0;
-    let added = 0;
-
-    // Chú thích: cập nhật key đã có trong localStorage
-    store.forEach(item => {
-        const sk = serverMap[item.key];
-        if (!sk) return;
-
-        if (!item.duration) {
-            item.duration = durationFromKey(item.key);
-        }
-
-        if (sk.activatedAt && sk.activatedAt !== item.activatedAt) {
-            item.activatedAt = sk.activatedAt;
-            updated++;
-        }
-        if (sk.hwid && !item.hwid) {
-            item.hwid = sk.hwid;
-        }
-    });
-
-    // Chú thích: thêm key từ server chưa có local
-    serverKeys.forEach(sk => {
-        if (!store.some(x => x.key === sk.key)) {
-            store.push({
-                key: sk.key,
-                ip: sk.ip || "unknown",
-                duration: durationFromKey(sk.key),
-                activatedAt: sk.activatedAt || null,
-                hwid: sk.hwid || null,
-                createdAt: sk.createdAt || Date.now()
-            });
-            added++;
-        }
-    });
-
-    saveStore(store);
-    renderTable($search.value);
-    alert(`Đã cập nhật ${updated} key, thêm ${added} key từ server`);
 }
 
 // ============================================================
 // Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM
 // ============================================================
 $btnReload.addEventListener("click", async () => {
-    await syncWithServer();
+    await syncWithServer(false);
 });
 
 $btnClearAll.addEventListener("click", async () => {
@@ -420,9 +442,21 @@ $btnClearAll.addEventListener("click", async () => {
 
 $search.addEventListener("input", (e) => renderTable(e.target.value));
 
+// ============================================================
+// Chú thích: AUTO REFRESH MỖI 1S
+// ============================================================
 setInterval(() => {
     if ($viewAdmin.style.display !== "none") renderTable($search.value);
 }, 1000);
+
+// ============================================================
+// Chú thích: AUTO SYNC MỖI 10S KHI Ở TAB ADMIN
+// ============================================================
+setInterval(async () => {
+    if ($viewAdmin.style.display !== "none") {
+        await syncWithServer(true);
+    }
+}, SYNC_INTERVAL);
 
 // ============================================================
 // Chú thích: HIỆU ỨNG CHẤM ĐỎ
