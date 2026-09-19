@@ -1,17 +1,14 @@
 // Chú thích: app.js - toàn bộ logic web TManhios
-// Bao gồm: sinh key + gửi Worker + admin panel
+// Bao gồm: sinh key + gửi Worker + xóa Worker + admin panel
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
 
-// Chú thích: URL Worker Cloudflare
-const API_ADD = "https://tmanhios.pretty-pilot.workers.dev/add";
+const API_ADD    = "https://tmanhios.pretty-pilot.workers.dev/add";
+const API_DELETE = "https://tmanhios.pretty-pilot.workers.dev/delete";
 
 let currentIP = "unknown";
 
-// ============================================================
-// Chú thích: MAP DURATION SANG PREFIX + LABEL
-// ============================================================
 const DURATION_MAP = {
     3600000:    { prefix: "TManhios-1hour-",   label: "1 GIỜ" },
     86400000:   { prefix: "TManhios-1day-",    label: "1 NGÀY" },
@@ -33,6 +30,23 @@ async function uploadKeyToServer(key) {
         return j.status === "ok";
     } catch (e) {
         console.error("[UPLOAD FAIL]", key, e);
+        return false;
+    }
+}
+
+// ============================================================
+// Chú thích: XÓA KEY KHỎI WORKER
+// ============================================================
+async function deleteKeyFromServer(key) {
+    try {
+        const form = new FormData();
+        form.append("key", key);
+        const r = await fetch(API_DELETE, { method: "POST", body: form });
+        const j = await r.json();
+        console.log("[DELETE]", key, "->", j.status);
+        return j.status === "ok";
+    } catch (e) {
+        console.error("[DELETE FAIL]", key, e);
         return false;
     }
 }
@@ -142,7 +156,7 @@ $tabAdmin.addEventListener("click", () => {
 });
 
 // ============================================================
-// Chú thích: NÚT TẠO KEY - gửi Worker
+// Chú thích: NÚT TẠO KEY
 // ============================================================
 $btnGen.addEventListener("click", async () => {
     let amount = parseInt($amount.value) || 1;
@@ -157,7 +171,6 @@ $btnGen.addEventListener("click", async () => {
     const info = getDurationInfo(dur);
     const keys = genKeys(info.prefix, amount, len);
 
-    // Chú thích: cộng dồn vào textarea
     const oldText = $result.value;
     if (oldText.trim() === "") {
         $result.value = keys.join("\n");
@@ -168,7 +181,6 @@ $btnGen.addEventListener("click", async () => {
     totalCount += keys.length;
     $count.textContent = totalCount;
 
-    // Chú thích: ghi local + gửi Worker
     const store = loadStore();
     const now = Date.now();
     const expiresAt = dur === 0 ? 0 : now + dur;
@@ -186,7 +198,6 @@ $btnGen.addEventListener("click", async () => {
             });
             added++;
         }
-        // Chú thích: gửi Worker
         const ok = await uploadKeyToServer(k);
         if (ok) uploaded++;
     }
@@ -200,7 +211,7 @@ $btnGen.addEventListener("click", async () => {
 });
 
 // ============================================================
-// Chú thích: COPY / XÓA
+// Chú thích: COPY / XÓA TEXTAREA
 // ============================================================
 $btnCopy.addEventListener("click", () => {
     if (!$result.value) return;
@@ -261,15 +272,34 @@ function renderTable(filter = "") {
         if (item.expiresAt === 0) tdRemain.className = "permanent";
         else if (item.expiresAt - now <= 0) tdRemain.className = "expired";
         else tdRemain.className = "active";
+
+        // Chú thích: nút XÓA key (cả local + Worker)
         const tdAct = document.createElement("td");
         const btnDel = document.createElement("button");
         btnDel.className = "btn-del"; btnDel.textContent = "XÓA";
-        btnDel.addEventListener("click", () => {
+        btnDel.addEventListener("click", async () => {
+            if (!confirm("Xóa key này? Người dùng sẽ bị chặn ngay lập tức.")) return;
+
+            btnDel.textContent = "...";
+            btnDel.disabled = true;
+
+            // Chú thích: xóa trên Worker trước
+            const ok = await deleteKeyFromServer(item.key);
+
+            if (!ok) {
+                alert("Xóa trên server thất bại, thử lại");
+                btnDel.textContent = "XÓA";
+                btnDel.disabled = false;
+                return;
+            }
+
+            // Chú thích: xóa local
             const newStore = loadStore().filter(x => x.key !== item.key);
             saveStore(newStore);
             renderTable($search.value);
         });
         tdAct.appendChild(btnDel);
+
         tr.appendChild(tdStt); tr.appendChild(tdKey); tr.appendChild(tdIp);
         tr.appendChild(tdType); tr.appendChild(tdCreated); tr.appendChild(tdRemain);
         tr.appendChild(tdAct);
@@ -282,14 +312,23 @@ function renderTable(filter = "") {
 // Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM
 // ============================================================
 $btnReload.addEventListener("click", () => renderTable($search.value));
-$btnClearAll.addEventListener("click", () => {
-    if (!confirm("Xóa toàn bộ key đã lưu?")) return;
+$btnClearAll.addEventListener("click", async () => {
+    if (!confirm("Xóa TOÀN BỘ key? Tất cả người dùng sẽ bị chặn.")) return;
+
+    const store = loadStore();
+    let deleted = 0;
+
+    for (const item of store) {
+        const ok = await deleteKeyFromServer(item.key);
+        if (ok) deleted++;
+    }
+
     saveStore([]);
     renderTable();
+    alert(`Đã xóa ${deleted}/${store.length} key`);
 });
 $search.addEventListener("input", (e) => renderTable(e.target.value));
 
-// Chú thích: refresh mỗi 1s khi ở admin
 setInterval(() => {
     if ($viewAdmin.style.display !== "none") renderTable($search.value);
 }, 1000);
