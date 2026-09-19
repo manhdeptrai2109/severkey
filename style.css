@@ -342,6 +342,12 @@ td.permanent {
     font-weight: bold;
 }
 
+/* Chú thích: cột CÒN LẠI khi key chưa ai dùng */
+td.not-used {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
 .btn-del {
     background: #ff2b2b;
     color: #fff;
