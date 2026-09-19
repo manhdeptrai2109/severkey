@@ -1,11 +1,12 @@
 // Chú thích: app.js - toàn bộ logic web TManhios
-// Bao gồm: sinh key + gửi Worker + xóa Worker + admin panel
+// Bao gồm: sinh key + gửi Worker + xóa Worker + đồng bộ + admin panel
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
 
 const API_ADD    = "https://tmanhios.pretty-pilot.workers.dev/add";
 const API_DELETE = "https://tmanhios.pretty-pilot.workers.dev/delete";
+const API_LIST   = "https://tmanhios.pretty-pilot.workers.dev/list";
 
 let currentIP = "unknown";
 
@@ -48,6 +49,21 @@ async function deleteKeyFromServer(key) {
     } catch (e) {
         console.error("[DELETE FAIL]", key, e);
         return false;
+    }
+}
+
+// ============================================================
+// Chú thích: LẤY DANH SÁCH KEY TỪ WORKER (để đồng bộ)
+// ============================================================
+async function fetchServerKeys() {
+    try {
+        const r = await fetch(API_LIST, { method: "POST" });
+        const j = await r.json();
+        if (j.status !== "ok") return null;
+        return j.keys || [];
+    } catch (e) {
+        console.error("[SYNC FAIL]", e);
+        return null;
     }
 }
 
@@ -183,7 +199,6 @@ $btnGen.addEventListener("click", async () => {
 
     const store = loadStore();
     const now = Date.now();
-    const expiresAt = dur === 0 ? 0 : now + dur;
     let added = 0;
     let uploaded = 0;
 
@@ -193,8 +208,8 @@ $btnGen.addEventListener("click", async () => {
                 key: k,
                 ip: currentIP,
                 duration: dur,
-                createdAt: now,
-                expiresAt: expiresAt
+                activatedAt: null,   // Chú thích: chưa kích hoạt
+                createdAt: now
             });
             added++;
         }
@@ -229,12 +244,19 @@ $btnClear.addEventListener("click", () => {
 });
 
 // ============================================================
-// Chú thích: ĐẾM NGƯỢC
+// Chú thích: ĐẾM NGƯỢC (theo activatedAt)
 // ============================================================
 function formatRemain(item) {
-    if (item.expiresAt === 0) return "∞";
-    const remain = item.expiresAt - Date.now();
+    // Chú thích: nếu chưa có activatedAt → chưa ai dùng
+    if (!item.activatedAt) return "CHƯA DÙNG";
+
+    const duration = item.duration || 0;
+    if (duration === 0) return "∞";
+
+    const expiresAt = item.activatedAt + duration;
+    const remain = expiresAt - Date.now();
     if (remain <= 0) return "HẾT HẠN";
+
     const totalSec = Math.floor(remain / 1000);
     const d = Math.floor(totalSec / 86400);
     const h = Math.floor((totalSec % 86400) / 3600);
@@ -254,7 +276,6 @@ function formatTime(ts) {
 function renderTable(filter = "") {
     const store = loadStore();
     $keyBody.innerHTML = "";
-    const now = Date.now();
     const list = filter
         ? store.filter(x => x.key.toLowerCase().includes(filter.toLowerCase()))
         : store;
@@ -268,24 +289,23 @@ function renderTable(filter = "") {
         const tdType = document.createElement("td"); tdType.className = "type-cell";
         tdType.textContent = getDurationInfo(item.duration || 0).label;
         const tdCreated = document.createElement("td"); tdCreated.textContent = formatTime(item.createdAt);
-        const tdRemain = document.createElement("td"); tdRemain.textContent = formatRemain(item);
-        if (item.expiresAt === 0) tdRemain.className = "permanent";
-        else if (item.expiresAt - now <= 0) tdRemain.className = "expired";
+
+        const tdRemain = document.createElement("td");
+        tdRemain.textContent = formatRemain(item);
+        if (!item.activatedAt) tdRemain.className = "not-used";
+        else if (item.duration === 0) tdRemain.className = "permanent";
+        else if (item.activatedAt + item.duration - Date.now() <= 0) tdRemain.className = "expired";
         else tdRemain.className = "active";
 
-        // Chú thích: nút XÓA key (cả local + Worker)
         const tdAct = document.createElement("td");
         const btnDel = document.createElement("button");
         btnDel.className = "btn-del"; btnDel.textContent = "XÓA";
         btnDel.addEventListener("click", async () => {
             if (!confirm("Xóa key này? Người dùng sẽ bị chặn ngay lập tức.")) return;
-
             btnDel.textContent = "...";
             btnDel.disabled = true;
 
-            // Chú thích: xóa trên Worker trước
             const ok = await deleteKeyFromServer(item.key);
-
             if (!ok) {
                 alert("Xóa trên server thất bại, thử lại");
                 btnDel.textContent = "XÓA";
@@ -293,7 +313,6 @@ function renderTable(filter = "") {
                 return;
             }
 
-            // Chú thích: xóa local
             const newStore = loadStore().filter(x => x.key !== item.key);
             saveStore(newStore);
             renderTable($search.value);
@@ -309,9 +328,45 @@ function renderTable(filter = "") {
 }
 
 // ============================================================
-// Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM
+// Chú thích: ĐỒNG BỘ VỚI WORKER
 // ============================================================
-$btnReload.addEventListener("click", () => renderTable($search.value));
+async function syncWithServer() {
+    const serverKeys = await fetchServerKeys();
+    if (!serverKeys) {
+        alert("Đồng bộ thất bại — kiểm tra kết nối");
+        return;
+    }
+
+    const store = loadStore();
+    const serverMap = {};
+    serverKeys.forEach(sk => { serverMap[sk.key] = sk; });
+
+    let updated = 0;
+    store.forEach(item => {
+        const sk = serverMap[item.key];
+        if (!sk) return;
+
+        if (sk.activatedAt && sk.activatedAt !== item.activatedAt) {
+            item.activatedAt = sk.activatedAt;
+            updated++;
+        }
+        if (sk.hwid && !item.hwid) {
+            item.hwid = sk.hwid;
+        }
+    });
+
+    saveStore(store);
+    renderTable($search.value);
+    alert(`Đã đồng bộ ${updated} key`);
+}
+
+// ============================================================
+// Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM / ĐỒNG BỘ
+// ============================================================
+$btnReload.addEventListener("click", async () => {
+    await syncWithServer();
+});
+
 $btnClearAll.addEventListener("click", async () => {
     if (!confirm("Xóa TOÀN BỘ key? Tất cả người dùng sẽ bị chặn.")) return;
 
@@ -327,6 +382,7 @@ $btnClearAll.addEventListener("click", async () => {
     renderTable();
     alert(`Đã xóa ${deleted}/${store.length} key`);
 });
+
 $search.addEventListener("input", (e) => renderTable(e.target.value));
 
 setInterval(() => {
