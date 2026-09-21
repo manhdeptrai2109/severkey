@@ -25,7 +25,7 @@ body {
     border-radius: 8px;
     padding: 30px;
     width: 100%;
-    max-width: 1300px;
+    max-width: 1400px;
     z-index: 1;
     box-shadow:
         0 0 20px rgba(255, 43, 43, 0.3),
@@ -200,18 +200,18 @@ body {
 }
 
 .controls input[type="number"] {
-    width: 80px;
+    width: 100px;
 }
 
 .controls input[type="text"],
 .controls input[type="password"] {
     flex: 1;
-    min-width: 160px;
+    min-width: 150px;
 }
 
 .controls select {
     cursor: pointer;
-    min-width: 130px;
+    min-width: 120px;
 }
 
 .controls select:focus,
@@ -232,6 +232,7 @@ body {
     font-size: 13px;
     letter-spacing: 1px;
     transition: 0.2s;
+    white-space: nowrap;
 }
 
 .controls button:hover {
@@ -295,8 +296,9 @@ body {
    Chú thích: BẢNG ADMIN
    ============================================================ */
 .table-wrap {
-    max-height: 500px;
+    max-height: 600px;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid #333;
     border-radius: 4px;
     background: #0a0a0a;
@@ -305,7 +307,8 @@ body {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 12px;
+    min-width: 1100px;
 }
 
 thead {
@@ -316,15 +319,18 @@ thead {
 }
 
 th, td {
-    padding: 10px;
+    padding: 8px 10px;
     text-align: left;
     border-bottom: 1px solid #222;
+    vertical-align: middle;
 }
 
 th {
     color: #ff2b2b;
     font-weight: bold;
     letter-spacing: 1px;
+    font-size: 11px;
+    white-space: nowrap;
 }
 
 td {
@@ -335,6 +341,7 @@ td.key-cell {
     color: #00ff7f;
     font-weight: bold;
     word-break: break-all;
+    max-width: 200px;
 }
 
 td.type-cell {
@@ -373,16 +380,24 @@ td.seller-disabled {
 /* ============================================================
    Chú thích: NÚT TRONG BẢNG
    ============================================================ */
-.btn-del {
-    background: #ff2b2b;
+.btn-del,
+.btn-toggle,
+.btn-keys,
+.btn-renew {
     color: #fff;
     border: none;
-    padding: 5px 10px;
+    padding: 5px 8px;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 10px;
     margin: 2px;
+    font-weight: bold;
     transition: 0.2s;
+    white-space: nowrap;
+}
+
+.btn-del {
+    background: #ff2b2b;
 }
 
 .btn-del:hover {
@@ -392,14 +407,6 @@ td.seller-disabled {
 
 .btn-toggle {
     background: #1e4f6f;
-    color: #fff;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 11px;
-    margin: 2px;
-    transition: 0.2s;
 }
 
 .btn-toggle:hover {
@@ -409,14 +416,6 @@ td.seller-disabled {
 
 .btn-keys {
     background: #1e6f1e;
-    color: #fff;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 11px;
-    margin: 2px;
-    transition: 0.2s;
 }
 
 .btn-keys:hover {
@@ -424,17 +423,8 @@ td.seller-disabled {
     box-shadow: 0 0 8px rgba(30, 111, 30, 0.7);
 }
 
-/* Chú thích: nút gia hạn seller */
 .btn-renew {
     background: #8f6f1e;
-    color: #fff;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 11px;
-    margin: 2px;
-    transition: 0.2s;
 }
 
 .btn-renew:hover {
