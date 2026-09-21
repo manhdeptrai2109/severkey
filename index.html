@@ -17,12 +17,17 @@
             <button id="tab-seller" class="tab-btn">QUẢN LÝ SELLER</button>
         </div>
 
+        <!-- ============================================================
+             VIEW TẠO KEY
+             ============================================================ -->
         <div id="view-gen" class="view">
             <div class="controls">
                 <label>Số lượng:</label>
                 <input type="number" id="amount" value="1" min="1" max="1000">
+
                 <label>Độ dài suffix:</label>
                 <input type="number" id="suffix-len" value="10" min="4" max="64">
+
                 <label>Loại hạn:</label>
                 <select id="duration">
                     <option value="3600000">1 Giờ</option>
@@ -31,39 +36,57 @@
                     <option value="2592000000">1 Tháng (30 ngày)</option>
                     <option value="0">Vĩnh viễn</option>
                 </select>
+
                 <button id="btn-gen">TẠO KEY</button>
                 <button id="btn-copy">COPY</button>
                 <button id="btn-clear">XÓA</button>
             </div>
+
             <div class="output">
                 <textarea id="result" readonly placeholder="Key sẽ hiện ở đây và tự lưu vào kho..."></textarea>
             </div>
+
             <div class="counter">
                 <span id="count">0</span> key đã tạo trong phiên |
                 <span id="ip-display">IP: đang lấy...</span>
             </div>
         </div>
 
+        <!-- ============================================================
+             VIEW QUẢN LÝ KEY
+             ============================================================ -->
         <div id="view-admin" class="view" style="display:none">
             <div class="controls">
                 <button id="btn-reload">TẢI LẠI</button>
                 <button id="btn-clear-all">XÓA TẤT CẢ</button>
                 <input type="text" id="search" placeholder="Tìm key...">
             </div>
+
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>STT</th><th>KEY</th><th>IP</th><th>LOẠI</th>
-                            <th>THỜI GIAN TẠO</th><th>CÒN LẠI</th><th>HÀNH ĐỘNG</th>
+                            <th>STT</th>
+                            <th>KEY</th>
+                            <th>IP</th>
+                            <th>LOẠI</th>
+                            <th>THỜI GIAN TẠO</th>
+                            <th>CÒN LẠI</th>
+                            <th>HÀNH ĐỘNG</th>
                         </tr>
                     </thead>
                     <tbody id="key-body"></tbody>
                 </table>
             </div>
-            <div class="counter">Tổng: <span id="total">0</span> key</div>
+
+            <div class="counter">
+                Tổng: <span id="total">0</span> key
+            </div>
         </div>
 
+        <!-- ============================================================
+             VIEW QUẢN LÝ SELLER
+             ============================================================ -->
         <div id="view-seller" class="view" style="display:none">
             <div class="controls">
                 <label>Mật khẩu admin:</label>
@@ -77,20 +100,14 @@
                 <input type="text" id="new-password" placeholder="Password (>=6)">
                 <input type="text" id="new-prefix" placeholder="Prefix (VD: PDD-)" value="TManhios-">
                 <input type="text" id="new-brand" placeholder="Tên web (VD: PDD STORE)" value="TMANHIOS SELLER">
-                <select id="new-months">
-                    <option value="1">1 Tháng</option>
-                    <option value="2">2 Tháng</option>
-                    <option value="3" selected>3 Tháng</option>
-                    <option value="4">4 Tháng</option>
-                    <option value="5">5 Tháng</option>
-                    <option value="6">6 Tháng</option>
-                    <option value="7">7 Tháng</option>
-                    <option value="8">8 Tháng</option>
-                    <option value="9">9 Tháng</option>
-                    <option value="10">10 Tháng</option>
-                    <option value="11">11 Tháng</option>
-                    <option value="12">12 Tháng</option>
+                <input type="number" id="new-rental-value" placeholder="Thời gian" value="3" min="1">
+                <select id="new-rental-unit">
+                    <option value="minute">Phút</option>
+                    <option value="hour">Giờ</option>
+                    <option value="day">Ngày</option>
+                    <option value="month" selected>Tháng</option>
                 </select>
+                <input type="number" id="new-quota" placeholder="Quota/ngày" value="100" min="1" max="10000">
                 <button id="btn-create-seller">TẠO SELLER</button>
             </div>
 
@@ -112,7 +129,10 @@
                     <tbody id="seller-body"></tbody>
                 </table>
             </div>
-            <div class="counter">Tổng: <span id="seller-total">0</span> seller</div>
+
+            <div class="counter">
+                Tổng: <span id="seller-total">0</span> seller
+            </div>
         </div>
     </div>
 
