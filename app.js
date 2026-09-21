@@ -1,4 +1,4 @@
-// Chú thích: app.js - web admin + quản lý seller có prefix + brand
+// Chú thích: app.js - web admin + quản lý seller + gia hạn
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
@@ -10,6 +10,7 @@ const API_SELLERS     = "https://tmanhios.pretty-pilot.workers.dev/admin/sellers
 const API_CREATE      = "https://tmanhios.pretty-pilot.workers.dev/admin/create";
 const API_DEL_SELLER  = "https://tmanhios.pretty-pilot.workers.dev/admin/delete-seller";
 const API_TOGGLE      = "https://tmanhios.pretty-pilot.workers.dev/admin/toggle";
+const API_RENEW       = "https://tmanhios.pretty-pilot.workers.dev/admin/renew";
 const API_SELLER_KEYS = "https://tmanhios.pretty-pilot.workers.dev/admin/seller-keys";
 
 let currentIP = "unknown";
@@ -132,6 +133,7 @@ const $newUsername     = document.getElementById("new-username");
 const $newPassword     = document.getElementById("new-password");
 const $newPrefix       = document.getElementById("new-prefix");
 const $newBrand        = document.getElementById("new-brand");
+const $newMonths       = document.getElementById("new-months");
 const $btnCreateSeller = document.getElementById("btn-create-seller");
 const $sellerBody      = document.getElementById("seller-body");
 const $sellerTotal     = document.getElementById("seller-total");
@@ -388,6 +390,22 @@ function renderSellers(sellers, pass) {
         tdStatus.textContent = s.active ? "HOẠT ĐỘNG" : "ĐÃ KHÓA";
         tdStatus.className = s.active ? "seller-active" : "seller-disabled";
 
+        const tdExpired = document.createElement("td");
+        if (s.expiredAt) {
+            const remain = s.expiredAt - Date.now();
+            if (remain <= 0) {
+                tdExpired.textContent = "ĐÃ HẾT HẠN";
+                tdExpired.className = "seller-disabled";
+            } else {
+                const days = Math.floor(remain / 86400000);
+                tdExpired.textContent = formatTime(s.expiredAt) + " (còn " + days + "N)";
+                tdExpired.className = "seller-active";
+            }
+        } else {
+            tdExpired.textContent = "∞";
+            tdExpired.className = "permanent";
+        }
+
         const tdQuota = document.createElement("td");
         tdQuota.textContent = `${s.quotaUsed}/${s.dailyLimit} (còn ${s.quotaRemain})`;
 
@@ -407,6 +425,31 @@ function renderSellers(sellers, pass) {
             const j = await r.json();
             if (j.status === "ok") loadSellers();
             else alert("Lỗi: " + j.msg);
+        });
+
+        const btnRenew = document.createElement("button");
+        btnRenew.className = "btn-renew";
+        btnRenew.textContent = "GIA HẠN";
+        btnRenew.addEventListener("click", async () => {
+            const input = prompt(`Gia hạn seller ${s.username}\nNhập số tháng (1-12):`, "1");
+            if (!input) return;
+            const months = parseInt(input);
+            if (isNaN(months) || months < 1 || months > 12) {
+                alert("Số tháng phải từ 1 đến 12");
+                return;
+            }
+            const form = new FormData();
+            form.append("admin_pass", pass);
+            form.append("username", s.username);
+            form.append("months", months);
+            const r = await fetch(API_RENEW, { method: "POST", body: form });
+            const j = await r.json();
+            if (j.status === "ok") {
+                alert(`Đã gia hạn ${months} tháng cho ${s.username}\nHết hạn mới: ${formatTime(j.expiredAt)}`);
+                loadSellers();
+            } else {
+                alert("Lỗi: " + j.msg);
+            }
         });
 
         const btnKeys = document.createElement("button");
@@ -441,12 +484,13 @@ function renderSellers(sellers, pass) {
         });
 
         tdAct.appendChild(btnToggle);
+        tdAct.appendChild(btnRenew);
         tdAct.appendChild(btnKeys);
         tdAct.appendChild(btnDel);
 
         tr.appendChild(tdStt); tr.appendChild(tdUser); tr.appendChild(tdPrefix);
-        tr.appendChild(tdBrand); tr.appendChild(tdStatus); tr.appendChild(tdQuota);
-        tr.appendChild(tdCreated); tr.appendChild(tdAct);
+        tr.appendChild(tdBrand); tr.appendChild(tdStatus); tr.appendChild(tdExpired);
+        tr.appendChild(tdQuota); tr.appendChild(tdCreated); tr.appendChild(tdAct);
         $sellerBody.appendChild(tr);
     });
 }
@@ -459,6 +503,7 @@ $btnCreateSeller.addEventListener("click", async () => {
     const pwd  = $newPassword.value.trim();
     const prefix = $newPrefix.value.trim() || "TManhios-";
     const brand  = $newBrand.value.trim() || "TMANHIOS SELLER";
+    const months = parseInt($newMonths.value) || 1;
 
     if (!pass) { alert("Nhập mật khẩu admin"); return; }
     if (!user || !pwd) { alert("Nhập đủ username + password"); return; }
@@ -473,15 +518,17 @@ $btnCreateSeller.addEventListener("click", async () => {
         form.append("password", pwd);
         form.append("prefix", prefix);
         form.append("brand", brand);
+        form.append("months", months);
         const r = await fetch(API_CREATE, { method: "POST", body: form });
         const j = await r.json();
 
         if (j.status === "ok") {
-            alert("Tạo seller thành công!\nUsername: " + user + "\nPrefix: " + prefix + "\nBrand: " + brand);
+            alert("Tạo seller thành công!\nUsername: " + user + "\nPrefix: " + prefix + "\nBrand: " + brand + "\nThuê: " + months + " tháng");
             $newUsername.value = "";
             $newPassword.value = "";
             $newPrefix.value = "TManhios-";
             $newBrand.value = "TMANHIOS SELLER";
+            $newMonths.value = "3";
             loadSellers();
         } else {
             alert("Lỗi: " + (j.msg || "unknown"));
