@@ -17,7 +17,6 @@
             <button id="tab-seller" class="tab-btn">QUẢN LÝ SELLER</button>
         </div>
 
-        <!-- VIEW TẠO KEY -->
         <div id="view-gen" class="view">
             <div class="controls">
                 <label>Số lượng:</label>
@@ -50,7 +49,6 @@
             </div>
         </div>
 
-        <!-- VIEW QUẢN LÝ KEY -->
         <div id="view-admin" class="view" style="display:none">
             <div class="controls">
                 <button id="btn-reload">TẢI LẠI</button>
@@ -80,7 +78,6 @@
             </div>
         </div>
 
-        <!-- VIEW QUẢN LÝ SELLER -->
         <div id="view-seller" class="view" style="display:none">
             <div class="controls">
                 <label>Mật khẩu admin:</label>
@@ -89,9 +86,11 @@
             </div>
 
             <div class="controls" style="border-top:1px dashed #333; padding-top:15px;">
-                <label>Tạo seller mới:</label>
-                <input type="text" id="new-username" placeholder="Username (a-z0-9_, >=4)">
+                <label>Tạo seller:</label>
+                <input type="text" id="new-username" placeholder="Username (>=4)">
                 <input type="text" id="new-password" placeholder="Password (>=6)">
+                <input type="text" id="new-prefix" placeholder="Prefix (VD: PDD-)" value="TManhios-">
+                <input type="text" id="new-brand" placeholder="Tên web (VD: PDD STORE)" value="TMANHIOS SELLER">
                 <button id="btn-create-seller">TẠO SELLER</button>
             </div>
 
@@ -101,8 +100,10 @@
                         <tr>
                             <th>STT</th>
                             <th>USERNAME</th>
+                            <th>PREFIX</th>
+                            <th>TÊN WEB</th>
                             <th>TRẠNG THÁI</th>
-                            <th>QUOTA HÔM NAY</th>
+                            <th>QUOTA</th>
                             <th>NGÀY TẠO</th>
                             <th>HÀNH ĐỘNG</th>
                         </tr>
