@@ -1,3 +1,4 @@
+/* Chú thích: reset toàn cục */
 * {
     margin: 0;
     padding: 0;
@@ -15,6 +16,9 @@ body {
     padding: 20px;
 }
 
+/* ============================================================
+   Chú thích: KHUNG CHÍNH
+   ============================================================ */
 .container {
     position: relative;
     background: #141414;
@@ -28,14 +32,17 @@ body {
         inset 0 0 20px rgba(255, 43, 43, 0.05);
 }
 
+/* Chú thích: biến góc cho conic-gradient */
 @property --angle {
     syntax: "<angle>";
     initial-value: 0deg;
     inherits: false;
 }
 
-.container::before,
-.container::after {
+/* ============================================================
+   Chú thích: TIA SÁNG VIỀN 1
+   ============================================================ */
+.container::before {
     content: "";
     position: absolute;
     inset: -2px;
@@ -59,13 +66,42 @@ body {
     z-index: -1;
 }
 
-.container::after { animation-delay: -1.5s; }
+/* ============================================================
+   Chú thích: TIA SÁNG VIỀN 2 lệch pha
+   ============================================================ */
+.container::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 10px;
+    padding: 2px;
+    background: conic-gradient(
+        from var(--angle, 0deg),
+        transparent 0deg,
+        transparent 300deg,
+        #ff2b2b 330deg,
+        #ff8888 345deg,
+        #ff2b2b 355deg,
+        transparent 360deg
+    );
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: border-spin 3s linear infinite;
+    animation-delay: -1.5s;
+    z-index: -1;
+}
 
 @keyframes border-spin {
     from { --angle: 0deg; }
     to   { --angle: 360deg; }
 }
 
+/* ============================================================
+   Chú thích: TIÊU ĐỀ GLOW + FLOAT
+   ============================================================ */
 .title-glow {
     color: #ff2b2b;
     font-size: 24px;
@@ -101,6 +137,9 @@ body {
     margin-bottom: 20px;
 }
 
+/* ============================================================
+   Chú thích: THANH TAB
+   ============================================================ */
 .tabs {
     display: flex;
     gap: 5px;
@@ -121,7 +160,9 @@ body {
     transition: 0.2s;
 }
 
-.tab-btn:hover { color: #ff2b2b; }
+.tab-btn:hover {
+    color: #ff2b2b;
+}
 
 .tab-btn.active {
     color: #ff2b2b;
@@ -129,6 +170,9 @@ body {
     text-shadow: 0 0 8px rgba(255, 43, 43, 0.6);
 }
 
+/* ============================================================
+   Chú thích: KHU ĐIỀU KHIỂN
+   ============================================================ */
 .controls {
     display: flex;
     flex-wrap: wrap;
@@ -155,10 +199,20 @@ body {
     font-family: 'Courier New', monospace;
 }
 
-.controls input[type="number"] { width: 80px; }
+.controls input[type="number"] {
+    width: 80px;
+}
+
 .controls input[type="text"],
-.controls input[type="password"] { flex: 1; min-width: 160px; }
-.controls select { cursor: pointer; min-width: 150px; }
+.controls input[type="password"] {
+    flex: 1;
+    min-width: 160px;
+}
+
+.controls select {
+    cursor: pointer;
+    min-width: 130px;
+}
 
 .controls select:focus,
 .controls input:focus {
@@ -186,16 +240,29 @@ body {
 }
 
 .controls button#btn-clear,
-.controls button#btn-clear-all { background: #333; }
+.controls button#btn-clear-all {
+    background: #333;
+}
 
-.controls button#btn-copy { background: #1e6f1e; }
+.controls button#btn-copy {
+    background: #1e6f1e;
+}
 
-.controls button#btn-reload { background: #1e4f6f; }
+.controls button#btn-reload {
+    background: #1e4f6f;
+}
 
-.controls button#btn-create-seller { background: #1e6f1e; }
+.controls button#btn-create-seller {
+    background: #1e6f1e;
+}
 
-.controls button#btn-load-sellers { background: #1e4f6f; }
+.controls button#btn-load-sellers {
+    background: #1e4f6f;
+}
 
+/* ============================================================
+   Chú thích: TEXTAREA OUTPUT
+   ============================================================ */
 .output textarea {
     width: 100%;
     height: 300px;
@@ -209,6 +276,9 @@ body {
     line-height: 1.5;
 }
 
+/* ============================================================
+   Chú thích: BỘ ĐẾM
+   ============================================================ */
 .counter {
     text-align: right;
     color: #666;
@@ -221,6 +291,9 @@ body {
     font-weight: bold;
 }
 
+/* ============================================================
+   Chú thích: BẢNG ADMIN
+   ============================================================ */
 .table-wrap {
     max-height: 500px;
     overflow-y: auto;
@@ -239,6 +312,7 @@ thead {
     position: sticky;
     top: 0;
     background: #1e1e1e;
+    z-index: 2;
 }
 
 th, td {
@@ -253,7 +327,9 @@ th {
     letter-spacing: 1px;
 }
 
-td { color: #ccc; }
+td {
+    color: #ccc;
+}
 
 td.key-cell {
     color: #00ff7f;
@@ -261,16 +337,43 @@ td.key-cell {
     word-break: break-all;
 }
 
-td.type-cell { color: #ff8888; }
-td.expired { color: #ff2b2b; }
-td.active { color: #00ff7f; }
-td.permanent { color: #ffcc00; font-weight: bold; }
-td.not-used { color: #ffcc00; font-weight: bold; }
+td.type-cell {
+    color: #ff8888;
+}
 
-td.seller-active { color: #00ff7f; font-weight: bold; }
-td.seller-disabled { color: #ff2b2b; font-weight: bold; }
+td.expired {
+    color: #ff2b2b;
+}
 
-.btn-del, .btn-toggle, .btn-keys {
+td.active {
+    color: #00ff7f;
+}
+
+td.permanent {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
+td.not-used {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
+/* Chú thích: seller status */
+td.seller-active {
+    color: #00ff7f;
+    font-weight: bold;
+}
+
+td.seller-disabled {
+    color: #ff2b2b;
+    font-weight: bold;
+}
+
+/* ============================================================
+   Chú thích: NÚT TRONG BẢNG
+   ============================================================ */
+.btn-del {
     background: #ff2b2b;
     color: #fff;
     border: none;
@@ -282,13 +385,66 @@ td.seller-disabled { color: #ff2b2b; font-weight: bold; }
     transition: 0.2s;
 }
 
-.btn-toggle { background: #1e4f6f; }
-.btn-keys   { background: #1e6f1e; }
+.btn-del:hover {
+    background: #cc1f1f;
+    box-shadow: 0 0 8px rgba(255, 43, 43, 0.7);
+}
 
-.btn-del:hover { background: #cc1f1f; }
-.btn-toggle:hover { background: #2a5f8f; }
-.btn-keys:hover { background: #2a8f2a; }
+.btn-toggle {
+    background: #1e4f6f;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    margin: 2px;
+    transition: 0.2s;
+}
 
+.btn-toggle:hover {
+    background: #2a5f8f;
+    box-shadow: 0 0 8px rgba(30, 79, 111, 0.7);
+}
+
+.btn-keys {
+    background: #1e6f1e;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    margin: 2px;
+    transition: 0.2s;
+}
+
+.btn-keys:hover {
+    background: #2a8f2a;
+    box-shadow: 0 0 8px rgba(30, 111, 30, 0.7);
+}
+
+/* Chú thích: nút gia hạn seller */
+.btn-renew {
+    background: #8f6f1e;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    margin: 2px;
+    transition: 0.2s;
+}
+
+.btn-renew:hover {
+    background: #af8f2e;
+    box-shadow: 0 0 8px rgba(143, 111, 30, 0.7);
+}
+
+/* ============================================================
+   Chú thích: CHẤM ĐỎ KHI CLICK
+   ============================================================ */
 .click-dot {
     position: fixed;
     width: 14px;
@@ -307,8 +463,26 @@ td.seller-disabled { color: #ff2b2b; font-weight: bold; }
 }
 
 @keyframes dot-fade {
-    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.6); }
-    15% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-    60% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); box-shadow: 0 0 0 transparent; }
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.6);
+        box-shadow:
+            0 0 6px #ff2b2b,
+            0 0 12px #ff2b2b,
+            0 0 24px #ff2b2b,
+            0 0 40px rgba(255, 43, 43, 0.7);
+    }
+    15% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    60% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.4);
+        box-shadow: 0 0 0 transparent;
+    }
 }
