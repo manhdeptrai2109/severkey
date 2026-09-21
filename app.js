@@ -1,16 +1,16 @@
-// Chú thích: app.js - web admin + quản lý seller
+// Chú thích: app.js - web admin + quản lý seller có prefix + brand
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
 
-const API_ADD     = "https://tmanhios.pretty-pilot.workers.dev/add";
-const API_DELETE  = "https://tmanhios.pretty-pilot.workers.dev/delete";
-const API_LIST    = "https://tmanhios.pretty-pilot.workers.dev/list";
-const API_SELLERS = "https://tmanhios.pretty-pilot.workers.dev/admin/sellers";
-const API_CREATE  = "https://tmanhios.pretty-pilot.workers.dev/admin/create";
-const API_DEL_SELLER    = "https://tmanhios.pretty-pilot.workers.dev/admin/delete-seller";
-const API_TOGGLE        = "https://tmanhios.pretty-pilot.workers.dev/admin/toggle";
-const API_SELLER_KEYS   = "https://tmanhios.pretty-pilot.workers.dev/admin/seller-keys";
+const API_ADD         = "https://tmanhios.pretty-pilot.workers.dev/add";
+const API_DELETE      = "https://tmanhios.pretty-pilot.workers.dev/delete";
+const API_LIST        = "https://tmanhios.pretty-pilot.workers.dev/list";
+const API_SELLERS     = "https://tmanhios.pretty-pilot.workers.dev/admin/sellers";
+const API_CREATE      = "https://tmanhios.pretty-pilot.workers.dev/admin/create";
+const API_DEL_SELLER  = "https://tmanhios.pretty-pilot.workers.dev/admin/delete-seller";
+const API_TOGGLE      = "https://tmanhios.pretty-pilot.workers.dev/admin/toggle";
+const API_SELLER_KEYS = "https://tmanhios.pretty-pilot.workers.dev/admin/seller-keys";
 
 let currentIP = "unknown";
 let totalCount = 0;
@@ -24,25 +24,21 @@ const DURATION_MAP = {
 };
 
 function durationFromKey(key) {
-    if (key.startsWith("TManhios-12hour-"))  return 43200000;
-    if (key.startsWith("TManhios-1hour-"))   return 3600000;
-    if (key.startsWith("TManhios-1day-"))    return 86400000;
-    if (key.startsWith("TManhios-7day-"))    return 604800000;
-    if (key.startsWith("TManhios-1month-"))  return 2592000000;
-    if (key.startsWith("TManhios-forever-")) return 0;
+    if (key.indexOf("-12hour-") !== -1) return 43200000;
+    if (key.indexOf("-1hour-")  !== -1) return 3600000;
+    if (key.indexOf("-1day-")   !== -1) return 86400000;
+    if (key.indexOf("-7day-")   !== -1) return 604800000;
+    if (key.indexOf("-1month-") !== -1) return 2592000000;
+    if (key.indexOf("-forever-")!== -1) return 0;
     return 86400000;
 }
 
-// ============================================================
-// Chú thích: gọi Worker
-// ============================================================
 async function uploadKeyToServer(key) {
     try {
         const form = new FormData();
         form.append("key", key);
         const r = await fetch(API_ADD, { method: "POST", body: form });
         const j = await r.json();
-        console.log("[UPLOAD]", key, "->", j.status);
         return j.status === "ok";
     } catch (e) { return false; }
 }
@@ -76,9 +72,6 @@ async function fetchIP() {
     if (el) el.textContent = "IP: " + currentIP;
 }
 
-// ============================================================
-// Chú thích: sinh key
-// ============================================================
 function randomSuffix(len) {
     let out = "";
     for (let i = 0; i < len; i++) {
@@ -111,9 +104,6 @@ function getDurationInfo(dur) {
     return DURATION_MAP[dur] || { prefix: "TManhios-1day-", label: "1 NGÀY" };
 }
 
-// ============================================================
-// Chú thích: DOM
-// ============================================================
 const $tabGen     = document.getElementById("tab-gen");
 const $tabAdmin   = document.getElementById("tab-admin");
 const $tabSeller  = document.getElementById("tab-seller");
@@ -136,17 +126,16 @@ const $search      = document.getElementById("search");
 const $keyBody     = document.getElementById("key-body");
 const $total       = document.getElementById("total");
 
-const $adminPass      = document.getElementById("admin-pass");
-const $btnLoadSellers = document.getElementById("btn-load-sellers");
-const $newUsername    = document.getElementById("new-username");
-const $newPassword    = document.getElementById("new-password");
+const $adminPass       = document.getElementById("admin-pass");
+const $btnLoadSellers  = document.getElementById("btn-load-sellers");
+const $newUsername     = document.getElementById("new-username");
+const $newPassword     = document.getElementById("new-password");
+const $newPrefix       = document.getElementById("new-prefix");
+const $newBrand        = document.getElementById("new-brand");
 const $btnCreateSeller = document.getElementById("btn-create-seller");
-const $sellerBody     = document.getElementById("seller-body");
-const $sellerTotal    = document.getElementById("seller-total");
+const $sellerBody      = document.getElementById("seller-body");
+const $sellerTotal     = document.getElementById("seller-total");
 
-// ============================================================
-// Chú thích: chuyển tab
-// ============================================================
 function showTab(tab) {
     $tabGen.classList.remove("active");
     $tabAdmin.classList.remove("active");
@@ -172,9 +161,6 @@ $tabGen.addEventListener("click", () => showTab("gen"));
 $tabAdmin.addEventListener("click", () => showTab("admin"));
 $tabSeller.addEventListener("click", () => showTab("seller"));
 
-// ============================================================
-// Chú thích: nút TẠO KEY
-// ============================================================
 $btnGen.addEventListener("click", async () => {
     let amount = parseInt($amount.value) || 1;
     let len    = parseInt($suffixLen.value) || 10;
@@ -189,11 +175,8 @@ $btnGen.addEventListener("click", async () => {
     const keys = genKeys(info.prefix, amount, len);
 
     const oldText = $result.value;
-    if (oldText.trim() === "") {
-        $result.value = keys.join("\n");
-    } else {
-        $result.value = oldText.replace(/\s+$/, "") + "\n" + keys.join("\n");
-    }
+    if (oldText.trim() === "") $result.value = keys.join("\n");
+    else $result.value = oldText.replace(/\s+$/, "") + "\n" + keys.join("\n");
 
     totalCount += keys.length;
     $count.textContent = totalCount;
@@ -237,9 +220,6 @@ $btnClear.addEventListener("click", () => {
     $count.textContent = 0;
 });
 
-// ============================================================
-// Chú thích: bảng key
-// ============================================================
 function formatRemain(item) {
     if (!item.activatedAt) return "CHƯA DÙNG";
     const duration = item.duration || durationFromKey(item.key);
@@ -396,6 +376,14 @@ function renderSellers(sellers, pass) {
         const tdStt = document.createElement("td"); tdStt.textContent = idx + 1;
         const tdUser = document.createElement("td"); tdUser.className = "key-cell"; tdUser.textContent = s.username;
 
+        const tdPrefix = document.createElement("td");
+        tdPrefix.className = "type-cell";
+        tdPrefix.textContent = s.prefix || "TManhios-";
+
+        const tdBrand = document.createElement("td");
+        tdBrand.textContent = s.brand || "TMANHIOS SELLER";
+        tdBrand.className = "type-cell";
+
         const tdStatus = document.createElement("td");
         tdStatus.textContent = s.active ? "HOẠT ĐỘNG" : "ĐÃ KHÓA";
         tdStatus.className = s.active ? "seller-active" : "seller-disabled";
@@ -431,7 +419,7 @@ function renderSellers(sellers, pass) {
             const r = await fetch(API_SELLER_KEYS, { method: "POST", body: form });
             const j = await r.json();
             if (j.status === "ok") {
-                let msg = `Seller: ${s.username}\nTổng key: ${j.count}\n\n`;
+                let msg = `Seller: ${s.username}\nPrefix: ${s.prefix}\nBrand: ${s.brand}\nTổng key: ${j.count}\n\n`;
                 j.keys.slice(0, 20).forEach(k => { msg += k.key + "\n"; });
                 if (j.count > 20) msg += `... và ${j.count - 20} key khác`;
                 alert(msg);
@@ -456,8 +444,9 @@ function renderSellers(sellers, pass) {
         tdAct.appendChild(btnKeys);
         tdAct.appendChild(btnDel);
 
-        tr.appendChild(tdStt); tr.appendChild(tdUser); tr.appendChild(tdStatus);
-        tr.appendChild(tdQuota); tr.appendChild(tdCreated); tr.appendChild(tdAct);
+        tr.appendChild(tdStt); tr.appendChild(tdUser); tr.appendChild(tdPrefix);
+        tr.appendChild(tdBrand); tr.appendChild(tdStatus); tr.appendChild(tdQuota);
+        tr.appendChild(tdCreated); tr.appendChild(tdAct);
         $sellerBody.appendChild(tr);
     });
 }
@@ -468,22 +457,31 @@ $btnCreateSeller.addEventListener("click", async () => {
     const pass = $adminPass.value.trim();
     const user = $newUsername.value.trim().toLowerCase();
     const pwd  = $newPassword.value.trim();
+    const prefix = $newPrefix.value.trim() || "TManhios-";
+    const brand  = $newBrand.value.trim() || "TMANHIOS SELLER";
 
     if (!pass) { alert("Nhập mật khẩu admin"); return; }
     if (!user || !pwd) { alert("Nhập đủ username + password"); return; }
+    if (user.length < 4) { alert("Username >= 4 ký tự"); return; }
+    if (pwd.length < 6) { alert("Password >= 6 ký tự"); return; }
+    if (!/^[A-Za-z0-9\-]+$/.test(prefix)) { alert("Prefix chỉ chữ, số, dấu gạch"); return; }
 
     try {
         const form = new FormData();
         form.append("admin_pass", pass);
         form.append("username", user);
         form.append("password", pwd);
+        form.append("prefix", prefix);
+        form.append("brand", brand);
         const r = await fetch(API_CREATE, { method: "POST", body: form });
         const j = await r.json();
 
         if (j.status === "ok") {
-            alert("Tạo seller thành công: " + user);
+            alert("Tạo seller thành công!\nUsername: " + user + "\nPrefix: " + prefix + "\nBrand: " + brand);
             $newUsername.value = "";
             $newPassword.value = "";
+            $newPrefix.value = "TManhios-";
+            $newBrand.value = "TMANHIOS SELLER";
             loadSellers();
         } else {
             alert("Lỗi: " + (j.msg || "unknown"));
@@ -493,9 +491,6 @@ $btnCreateSeller.addEventListener("click", async () => {
     }
 });
 
-// ============================================================
-// Chú thích: chấm đỏ
-// ============================================================
 document.addEventListener("click", (e) => {
     const dot = document.createElement("div");
     dot.className = "click-dot";
