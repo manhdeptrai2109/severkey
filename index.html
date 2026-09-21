@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- Chú thích: trang gộp - tạo key + quản lý key -->
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -15,11 +14,10 @@
         <div class="tabs">
             <button id="tab-gen" class="tab-btn active">TẠO KEY</button>
             <button id="tab-admin" class="tab-btn">QUẢN LÝ KEY</button>
+            <button id="tab-seller" class="tab-btn">QUẢN LÝ SELLER</button>
         </div>
 
-        <!-- ============================================================
-             Chú thích: VIEW TẠO KEY
-             ============================================================ -->
+        <!-- VIEW TẠO KEY -->
         <div id="view-gen" class="view">
             <div class="controls">
                 <label>Số lượng:</label>
@@ -52,9 +50,7 @@
             </div>
         </div>
 
-        <!-- ============================================================
-             Chú thích: VIEW QUẢN LÝ KEY
-             ============================================================ -->
+        <!-- VIEW QUẢN LÝ KEY -->
         <div id="view-admin" class="view" style="display:none">
             <div class="controls">
                 <button id="btn-reload">TẢI LẠI</button>
@@ -63,7 +59,7 @@
             </div>
 
             <div class="table-wrap">
-                <table id="key-table">
+                <table>
                     <thead>
                         <tr>
                             <th>STT</th>
@@ -81,6 +77,42 @@
 
             <div class="counter">
                 Tổng: <span id="total">0</span> key
+            </div>
+        </div>
+
+        <!-- VIEW QUẢN LÝ SELLER -->
+        <div id="view-seller" class="view" style="display:none">
+            <div class="controls">
+                <label>Mật khẩu admin:</label>
+                <input type="password" id="admin-pass" placeholder="Nhập mật khẩu admin...">
+                <button id="btn-load-sellers">TẢI DANH SÁCH</button>
+            </div>
+
+            <div class="controls" style="border-top:1px dashed #333; padding-top:15px;">
+                <label>Tạo seller mới:</label>
+                <input type="text" id="new-username" placeholder="Username (a-z0-9_, >=4)">
+                <input type="text" id="new-password" placeholder="Password (>=6)">
+                <button id="btn-create-seller">TẠO SELLER</button>
+            </div>
+
+            <div class="table-wrap" style="margin-top:15px">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>USERNAME</th>
+                            <th>TRẠNG THÁI</th>
+                            <th>QUOTA HÔM NAY</th>
+                            <th>NGÀY TẠO</th>
+                            <th>HÀNH ĐỘNG</th>
+                        </tr>
+                    </thead>
+                    <tbody id="seller-body"></tbody>
+                </table>
+            </div>
+
+            <div class="counter">
+                Tổng: <span id="seller-total">0</span> seller
             </div>
         </div>
     </div>
