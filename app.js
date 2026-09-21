@@ -1,4 +1,4 @@
-// Chú thích: app.js - web admin + quản lý seller + gia hạn
+// Chú thích: app.js - web admin + quản lý seller + gia hạn + quota tùy chỉnh
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
@@ -22,6 +22,13 @@ const DURATION_MAP = {
     604800000:  { prefix: "TManhios-7day-",    label: "7 NGÀY" },
     2592000000: { prefix: "TManhios-1month-",  label: "1 THÁNG" },
     0:          { prefix: "TManhios-forever-", label: "VĨNH VIỄN" }
+};
+
+const RENTAL_UNIT_LABEL = {
+    "minute": "phút",
+    "hour":   "giờ",
+    "day":    "ngày",
+    "month":  "tháng"
 };
 
 function durationFromKey(key) {
@@ -105,6 +112,9 @@ function getDurationInfo(dur) {
     return DURATION_MAP[dur] || { prefix: "TManhios-1day-", label: "1 NGÀY" };
 }
 
+// ============================================================
+// Chú thích: DOM
+// ============================================================
 const $tabGen     = document.getElementById("tab-gen");
 const $tabAdmin   = document.getElementById("tab-admin");
 const $tabSeller  = document.getElementById("tab-seller");
@@ -133,11 +143,16 @@ const $newUsername     = document.getElementById("new-username");
 const $newPassword     = document.getElementById("new-password");
 const $newPrefix       = document.getElementById("new-prefix");
 const $newBrand        = document.getElementById("new-brand");
-const $newMonths       = document.getElementById("new-months");
+const $newRentalValue  = document.getElementById("new-rental-value");
+const $newRentalUnit   = document.getElementById("new-rental-unit");
+const $newQuota        = document.getElementById("new-quota");
 const $btnCreateSeller = document.getElementById("btn-create-seller");
 const $sellerBody      = document.getElementById("seller-body");
 const $sellerTotal     = document.getElementById("seller-total");
 
+// ============================================================
+// Chú thích: TAB
+// ============================================================
 function showTab(tab) {
     $tabGen.classList.remove("active");
     $tabAdmin.classList.remove("active");
@@ -163,6 +178,9 @@ $tabGen.addEventListener("click", () => showTab("gen"));
 $tabAdmin.addEventListener("click", () => showTab("admin"));
 $tabSeller.addEventListener("click", () => showTab("seller"));
 
+// ============================================================
+// Chú thích: TẠO KEY
+// ============================================================
 $btnGen.addEventListener("click", async () => {
     let amount = parseInt($amount.value) || 1;
     let len    = parseInt($suffixLen.value) || 10;
@@ -222,6 +240,9 @@ $btnClear.addEventListener("click", () => {
     $count.textContent = 0;
 });
 
+// ============================================================
+// Chú thích: FORMAT
+// ============================================================
 function formatRemain(item) {
     if (!item.activatedAt) return "CHƯA DÙNG";
     const duration = item.duration || durationFromKey(item.key);
@@ -242,6 +263,13 @@ function formatTime(ts) {
     return new Date(ts).toLocaleString("vi-VN");
 }
 
+function formatDate(ts) {
+    return new Date(ts).toLocaleDateString("vi-VN");
+}
+
+// ============================================================
+// Chú thích: RENDER BẢNG KEY
+// ============================================================
 function renderTable(filter = "") {
     const store = loadStore();
     $keyBody.innerHTML = "";
@@ -397,8 +425,12 @@ function renderSellers(sellers, pass) {
                 tdExpired.textContent = "ĐÃ HẾT HẠN";
                 tdExpired.className = "seller-disabled";
             } else {
+                const totalHours = Math.floor(remain / 3600000);
                 const days = Math.floor(remain / 86400000);
-                tdExpired.textContent = formatTime(s.expiredAt) + " (còn " + days + "N)";
+                let remainStr;
+                if (days >= 1) remainStr = days + "N";
+                else remainStr = totalHours + "H";
+                tdExpired.textContent = formatDate(s.expiredAt) + " (còn " + remainStr + ")";
                 tdExpired.className = "seller-active";
             }
         } else {
@@ -431,21 +463,29 @@ function renderSellers(sellers, pass) {
         btnRenew.className = "btn-renew";
         btnRenew.textContent = "GIA HẠN";
         btnRenew.addEventListener("click", async () => {
-            const input = prompt(`Gia hạn seller ${s.username}\nNhập số tháng (1-12):`, "1");
-            if (!input) return;
-            const months = parseInt(input);
-            if (isNaN(months) || months < 1 || months > 12) {
-                alert("Số tháng phải từ 1 đến 12");
+            const inputVal = prompt(`Gia hạn seller ${s.username}\nNhập số lượng:`, "1");
+            if (!inputVal) return;
+            const rentalValue = parseInt(inputVal);
+            if (isNaN(rentalValue) || rentalValue < 1) {
+                alert("Số lượng phải >= 1");
+                return;
+            }
+            const unitInput = prompt("Đơn vị: minute / hour / day / month", "month");
+            if (!unitInput) return;
+            const rentalUnit = unitInput.trim().toLowerCase();
+            if (!["minute", "hour", "day", "month"].includes(rentalUnit)) {
+                alert("Đơn vị phải là: minute, hour, day hoặc month");
                 return;
             }
             const form = new FormData();
             form.append("admin_pass", pass);
             form.append("username", s.username);
-            form.append("months", months);
+            form.append("rentalValue", rentalValue);
+            form.append("rentalUnit", rentalUnit);
             const r = await fetch(API_RENEW, { method: "POST", body: form });
             const j = await r.json();
             if (j.status === "ok") {
-                alert(`Đã gia hạn ${months} tháng cho ${s.username}\nHết hạn mới: ${formatTime(j.expiredAt)}`);
+                alert(`Đã gia hạn ${rentalValue} ${RENTAL_UNIT_LABEL[rentalUnit]} cho ${s.username}`);
                 loadSellers();
             } else {
                 alert("Lỗi: " + j.msg);
@@ -503,13 +543,17 @@ $btnCreateSeller.addEventListener("click", async () => {
     const pwd  = $newPassword.value.trim();
     const prefix = $newPrefix.value.trim() || "TManhios-";
     const brand  = $newBrand.value.trim() || "TMANHIOS SELLER";
-    const months = parseInt($newMonths.value) || 1;
+    const rentalValue = parseInt($newRentalValue.value) || 3;
+    const rentalUnit  = $newRentalUnit.value || "month";
+    const quota       = parseInt($newQuota.value) || 100;
 
     if (!pass) { alert("Nhập mật khẩu admin"); return; }
     if (!user || !pwd) { alert("Nhập đủ username + password"); return; }
     if (user.length < 4) { alert("Username >= 4 ký tự"); return; }
     if (pwd.length < 6) { alert("Password >= 6 ký tự"); return; }
     if (!/^[A-Za-z0-9\-]+$/.test(prefix)) { alert("Prefix chỉ chữ, số, dấu gạch"); return; }
+    if (rentalValue < 1) { alert("Thời gian thuê phải >= 1"); return; }
+    if (quota < 1 || quota > 10000) { alert("Quota từ 1 đến 10000"); return; }
 
     try {
         const form = new FormData();
@@ -518,17 +562,29 @@ $btnCreateSeller.addEventListener("click", async () => {
         form.append("password", pwd);
         form.append("prefix", prefix);
         form.append("brand", brand);
-        form.append("months", months);
+        form.append("rentalValue", rentalValue);
+        form.append("rentalUnit", rentalUnit);
+        form.append("quota", quota);
         const r = await fetch(API_CREATE, { method: "POST", body: form });
         const j = await r.json();
 
         if (j.status === "ok") {
-            alert("Tạo seller thành công!\nUsername: " + user + "\nPrefix: " + prefix + "\nBrand: " + brand + "\nThuê: " + months + " tháng");
+            const unitLabel = RENTAL_UNIT_LABEL[rentalUnit];
+            alert(
+                "Tạo seller thành công!\n" +
+                "Username: " + user + "\n" +
+                "Prefix: " + prefix + "\n" +
+                "Brand: " + brand + "\n" +
+                "Thuê: " + rentalValue + " " + unitLabel + "\n" +
+                "Quota: " + quota + " key/ngày"
+            );
             $newUsername.value = "";
             $newPassword.value = "";
             $newPrefix.value = "TManhios-";
             $newBrand.value = "TMANHIOS SELLER";
-            $newMonths.value = "3";
+            $newRentalValue.value = "3";
+            $newRentalUnit.value = "month";
+            $newQuota.value = "100";
             loadSellers();
         } else {
             alert("Lỗi: " + (j.msg || "unknown"));
@@ -538,6 +594,9 @@ $btnCreateSeller.addEventListener("click", async () => {
     }
 });
 
+// ============================================================
+// Chú thích: chấm đỏ
+// ============================================================
 document.addEventListener("click", (e) => {
     const dot = document.createElement("div");
     dot.className = "click-dot";
