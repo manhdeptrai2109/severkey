@@ -1,15 +1,19 @@
-// Chú thích: app.js - web admin TManhios + tự động đồng bộ 10s
+// Chú thích: app.js - web admin + quản lý seller
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const STORAGE_KEY = "tmanhios_keys";
 
-const API_ADD    = "https://tmanhios.pretty-pilot.workers.dev/add";
-const API_DELETE = "https://tmanhios.pretty-pilot.workers.dev/delete";
-const API_LIST   = "https://tmanhios.pretty-pilot.workers.dev/list";
-
-const SYNC_INTERVAL = 10000; // Chú thích: 10 giây
+const API_ADD     = "https://tmanhios.pretty-pilot.workers.dev/add";
+const API_DELETE  = "https://tmanhios.pretty-pilot.workers.dev/delete";
+const API_LIST    = "https://tmanhios.pretty-pilot.workers.dev/list";
+const API_SELLERS = "https://tmanhios.pretty-pilot.workers.dev/admin/sellers";
+const API_CREATE  = "https://tmanhios.pretty-pilot.workers.dev/admin/create";
+const API_DEL_SELLER    = "https://tmanhios.pretty-pilot.workers.dev/admin/delete-seller";
+const API_TOGGLE        = "https://tmanhios.pretty-pilot.workers.dev/admin/toggle";
+const API_SELLER_KEYS   = "https://tmanhios.pretty-pilot.workers.dev/admin/seller-keys";
 
 let currentIP = "unknown";
+let totalCount = 0;
 
 const DURATION_MAP = {
     3600000:    { prefix: "TManhios-1hour-",   label: "1 GIỜ" },
@@ -19,10 +23,8 @@ const DURATION_MAP = {
     0:          { prefix: "TManhios-forever-", label: "VĨNH VIỄN" }
 };
 
-// ============================================================
-// Chú thích: SUY DURATION TỪ PREFIX KEY
-// ============================================================
 function durationFromKey(key) {
+    if (key.startsWith("TManhios-12hour-"))  return 43200000;
     if (key.startsWith("TManhios-1hour-"))   return 3600000;
     if (key.startsWith("TManhios-1day-"))    return 86400000;
     if (key.startsWith("TManhios-7day-"))    return 604800000;
@@ -32,7 +34,7 @@ function durationFromKey(key) {
 }
 
 // ============================================================
-// Chú thích: GỬI KEY LÊN WORKER
+// Chú thích: gọi Worker
 // ============================================================
 async function uploadKeyToServer(key) {
     try {
@@ -42,61 +44,40 @@ async function uploadKeyToServer(key) {
         const j = await r.json();
         console.log("[UPLOAD]", key, "->", j.status);
         return j.status === "ok";
-    } catch (e) {
-        console.error("[UPLOAD FAIL]", key, e);
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
-// ============================================================
-// Chú thích: XÓA KEY KHỎI WORKER
-// ============================================================
 async function deleteKeyFromServer(key) {
     try {
         const form = new FormData();
         form.append("key", key);
         const r = await fetch(API_DELETE, { method: "POST", body: form });
         const j = await r.json();
-        console.log("[DELETE]", key, "->", j.status);
         return j.status === "ok";
-    } catch (e) {
-        console.error("[DELETE FAIL]", key, e);
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
-// ============================================================
-// Chú thích: LẤY DANH SÁCH KEY TỪ WORKER
-// ============================================================
 async function fetchServerKeys() {
     try {
         const r = await fetch(API_LIST, { method: "POST" });
         const j = await r.json();
         if (j.status !== "ok") return null;
         return j.keys || [];
-    } catch (e) {
-        console.error("[SYNC FAIL]", e);
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
-// ============================================================
-// Chú thích: LẤY IPV4
-// ============================================================
 async function fetchIP() {
     try {
         const r = await fetch("https://api.ipify.org?format=json");
         const j = await r.json();
         currentIP = j.ip || "unknown";
-    } catch (e) {
-        currentIP = "unknown";
-    }
+    } catch (e) { currentIP = "unknown"; }
     const el = document.getElementById("ip-display");
     if (el) el.textContent = "IP: " + currentIP;
 }
 
 // ============================================================
-// Chú thích: SINH KEY
+// Chú thích: sinh key
 // ============================================================
 function randomSuffix(len) {
     let out = "";
@@ -107,30 +88,19 @@ function randomSuffix(len) {
     return out;
 }
 
-function genKey(prefix, len) {
-    return prefix + randomSuffix(len);
-}
-
 function genKeys(prefix, amount, len) {
     const set = new Set();
     let attempts = 0;
-    const maxAttempts = amount * 10;
-    while (set.size < amount && attempts < maxAttempts) {
-        set.add(genKey(prefix, len));
+    while (set.size < amount && attempts < amount * 10) {
+        set.add(prefix + randomSuffix(len));
         attempts++;
     }
     return Array.from(set);
 }
 
-// ============================================================
-// Chú thích: KHO KEY LOCALSTORAGE
-// ============================================================
 function loadStore() {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch (e) {
-        return [];
-    }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+    catch (e) { return []; }
 }
 
 function saveStore(arr) {
@@ -142,12 +112,14 @@ function getDurationInfo(dur) {
 }
 
 // ============================================================
-// Chú thích: DOM ELEMENT
+// Chú thích: DOM
 // ============================================================
-const $tabGen    = document.getElementById("tab-gen");
-const $tabAdmin  = document.getElementById("tab-admin");
-const $viewGen   = document.getElementById("view-gen");
-const $viewAdmin = document.getElementById("view-admin");
+const $tabGen     = document.getElementById("tab-gen");
+const $tabAdmin   = document.getElementById("tab-admin");
+const $tabSeller  = document.getElementById("tab-seller");
+const $viewGen    = document.getElementById("view-gen");
+const $viewAdmin  = document.getElementById("view-admin");
+const $viewSeller = document.getElementById("view-seller");
 
 const $amount    = document.getElementById("amount");
 const $suffixLen = document.getElementById("suffix-len");
@@ -164,30 +136,44 @@ const $search      = document.getElementById("search");
 const $keyBody     = document.getElementById("key-body");
 const $total       = document.getElementById("total");
 
-let totalCount = 0;
-let syncRunning = false;
+const $adminPass      = document.getElementById("admin-pass");
+const $btnLoadSellers = document.getElementById("btn-load-sellers");
+const $newUsername    = document.getElementById("new-username");
+const $newPassword    = document.getElementById("new-password");
+const $btnCreateSeller = document.getElementById("btn-create-seller");
+const $sellerBody     = document.getElementById("seller-body");
+const $sellerTotal    = document.getElementById("seller-total");
 
 // ============================================================
-// Chú thích: CHUYỂN TAB
+// Chú thích: chuyển tab
 // ============================================================
-$tabGen.addEventListener("click", () => {
-    $tabGen.classList.add("active");
-    $tabAdmin.classList.remove("active");
-    $viewGen.style.display = "";
-    $viewAdmin.style.display = "none";
-});
-
-$tabAdmin.addEventListener("click", async () => {
-    $tabAdmin.classList.add("active");
+function showTab(tab) {
     $tabGen.classList.remove("active");
+    $tabAdmin.classList.remove("active");
+    $tabSeller.classList.remove("active");
     $viewGen.style.display = "none";
-    $viewAdmin.style.display = "";
-    await syncWithServer(true);
-    renderTable($search.value);
-});
+    $viewAdmin.style.display = "none";
+    $viewSeller.style.display = "none";
+
+    if (tab === "gen") {
+        $tabGen.classList.add("active");
+        $viewGen.style.display = "";
+    } else if (tab === "admin") {
+        $tabAdmin.classList.add("active");
+        $viewAdmin.style.display = "";
+        renderTable($search.value);
+    } else if (tab === "seller") {
+        $tabSeller.classList.add("active");
+        $viewSeller.style.display = "";
+    }
+}
+
+$tabGen.addEventListener("click", () => showTab("gen"));
+$tabAdmin.addEventListener("click", () => showTab("admin"));
+$tabSeller.addEventListener("click", () => showTab("seller"));
 
 // ============================================================
-// Chú thích: NÚT TẠO KEY
+// Chú thích: nút TẠO KEY
 // ============================================================
 $btnGen.addEventListener("click", async () => {
     let amount = parseInt($amount.value) || 1;
@@ -214,18 +200,13 @@ $btnGen.addEventListener("click", async () => {
 
     const store = loadStore();
     const now = Date.now();
-    let added = 0;
-    let uploaded = 0;
+    let added = 0, uploaded = 0;
 
     for (const k of keys) {
         if (!store.some(x => x.key === k)) {
             store.push({
-                key: k,
-                ip: currentIP,
-                duration: dur,
-                activatedAt: null,
-                hwid: null,
-                createdAt: now
+                key: k, ip: currentIP, duration: dur,
+                activatedAt: null, hwid: null, createdAt: now
             });
             added++;
         }
@@ -241,9 +222,6 @@ $btnGen.addEventListener("click", async () => {
     setTimeout(() => { $btnGen.textContent = old; }, 1500);
 });
 
-// ============================================================
-// Chú thích: COPY / XÓA TEXTAREA
-// ============================================================
 $btnCopy.addEventListener("click", () => {
     if (!$result.value) return;
     navigator.clipboard.writeText($result.value).then(() => {
@@ -260,18 +238,15 @@ $btnClear.addEventListener("click", () => {
 });
 
 // ============================================================
-// Chú thích: ĐẾM NGƯỢC
+// Chú thích: bảng key
 // ============================================================
 function formatRemain(item) {
     if (!item.activatedAt) return "CHƯA DÙNG";
-
     const duration = item.duration || durationFromKey(item.key);
     if (duration === 0) return "∞";
-
     const expiresAt = item.activatedAt + duration;
     const remain = expiresAt - Date.now();
     if (remain <= 0) return "HẾT HẠN";
-
     const totalSec = Math.floor(remain / 1000);
     const d = Math.floor(totalSec / 86400);
     const h = Math.floor((totalSec % 86400) / 3600);
@@ -285,12 +260,10 @@ function formatTime(ts) {
     return new Date(ts).toLocaleString("vi-VN");
 }
 
-// ============================================================
-// Chú thích: RENDER BẢNG
-// ============================================================
 function renderTable(filter = "") {
     const store = loadStore();
     $keyBody.innerHTML = "";
+    const now = Date.now();
     const list = filter
         ? store.filter(x => x.key.toLowerCase().includes(filter.toLowerCase()))
         : store;
@@ -310,25 +283,17 @@ function renderTable(filter = "") {
         tdRemain.textContent = formatRemain(item);
         if (!item.activatedAt) tdRemain.className = "not-used";
         else if (itemDuration === 0) tdRemain.className = "permanent";
-        else if (item.activatedAt + itemDuration - Date.now() <= 0) tdRemain.className = "expired";
+        else if (item.activatedAt + itemDuration - now <= 0) tdRemain.className = "expired";
         else tdRemain.className = "active";
 
         const tdAct = document.createElement("td");
         const btnDel = document.createElement("button");
         btnDel.className = "btn-del"; btnDel.textContent = "XÓA";
         btnDel.addEventListener("click", async () => {
-            if (!confirm("Xóa key này? Người dùng sẽ bị chặn ngay lập tức.")) return;
-            btnDel.textContent = "...";
-            btnDel.disabled = true;
-
+            if (!confirm("Xóa key này?")) return;
+            btnDel.textContent = "..."; btnDel.disabled = true;
             const ok = await deleteKeyFromServer(item.key);
-            if (!ok) {
-                alert("Xóa trên server thất bại, thử lại");
-                btnDel.textContent = "XÓA";
-                btnDel.disabled = false;
-                return;
-            }
-
+            if (!ok) { alert("Lỗi xóa"); btnDel.textContent = "XÓA"; btnDel.disabled = false; return; }
             const newStore = loadStore().filter(x => x.key !== item.key);
             saveStore(newStore);
             renderTable($search.value);
@@ -343,123 +308,193 @@ function renderTable(filter = "") {
     $total.textContent = store.length;
 }
 
-// ============================================================
-// Chú thích: ĐỒNG BỘ VỚI WORKER
-// silent = true → không alert
-// ============================================================
-async function syncWithServer(silent = false) {
-    if (syncRunning) return;
-    syncRunning = true;
+async function syncWithServer() {
+    const serverKeys = await fetchServerKeys();
+    if (!serverKeys) { alert("Đồng bộ thất bại"); return; }
+    const store = loadStore();
+    const serverMap = {};
+    serverKeys.forEach(sk => { serverMap[sk.key] = sk; });
 
-    try {
-        const serverKeys = await fetchServerKeys();
-        if (!serverKeys) {
-            if (!silent) alert("Đồng bộ thất bại — kiểm tra kết nối");
-            syncRunning = false;
-            return;
+    let updated = 0, added = 0;
+    store.forEach(item => {
+        const sk = serverMap[item.key];
+        if (!sk) return;
+        if (!item.duration) item.duration = durationFromKey(item.key);
+        if (sk.activatedAt && item.activatedAt !== sk.activatedAt) {
+            item.activatedAt = sk.activatedAt; updated++;
         }
+        if (sk.hwid && !item.hwid) item.hwid = sk.hwid;
+    });
 
-        const store = loadStore();
-        const serverMap = {};
-        serverKeys.forEach(sk => { serverMap[sk.key] = sk; });
-
-        let updated = 0;
-        let added = 0;
-        let removed = 0;
-
-        // Chú thích: cập nhật key đã có
-        store.forEach(item => {
-            const sk = serverMap[item.key];
-            if (!sk) return;
-
-            if (!item.duration) {
-                item.duration = durationFromKey(item.key);
-            }
-
-            // Chú thích: ghi đè activatedAt nếu Worker có
-            if (sk.activatedAt && item.activatedAt !== sk.activatedAt) {
-                item.activatedAt = sk.activatedAt;
-                updated++;
-            }
-            if (sk.hwid && item.hwid !== sk.hwid) {
-                item.hwid = sk.hwid;
-            }
-        });
-
-        // Chú thích: thêm key mới từ Worker chưa có local
-        serverKeys.forEach(sk => {
-            if (!store.some(x => x.key === sk.key)) {
-                store.push({
-                    key: sk.key,
-                    ip: sk.ip || "unknown",
-                    duration: durationFromKey(sk.key),
-                    activatedAt: sk.activatedAt || null,
-                    hwid: sk.hwid || null,
-                    createdAt: sk.createdAt || Date.now()
-                });
-                added++;
-            }
-        });
-
-        // Chú thích: xóa key local đã bị xóa trên Worker
-        const before = store.length;
-        const filtered = store.filter(item => serverMap[item.key]);
-        removed = before - filtered.length;
-
-        saveStore(filtered);
-        renderTable($search.value);
-
-        if (!silent && (updated > 0 || added > 0 || removed > 0)) {
-            console.log(`[SYNC] updated=${updated} added=${added} removed=${removed}`);
+    serverKeys.forEach(sk => {
+        if (!store.some(x => x.key === sk.key)) {
+            store.push({
+                key: sk.key, ip: sk.ip || "unknown",
+                duration: durationFromKey(sk.key),
+                activatedAt: sk.activatedAt || null,
+                hwid: sk.hwid || null,
+                createdAt: sk.createdAt || Date.now()
+            });
+            added++;
         }
-    } finally {
-        syncRunning = false;
-    }
+    });
+
+    saveStore(store);
+    renderTable($search.value);
+    alert(`Cập nhật ${updated}, thêm ${added}`);
 }
 
-// ============================================================
-// Chú thích: NÚT TẢI LẠI / XÓA TẤT CẢ / TÌM KIẾM
-// ============================================================
-$btnReload.addEventListener("click", async () => {
-    await syncWithServer(false);
-});
+$btnReload.addEventListener("click", syncWithServer);
 
 $btnClearAll.addEventListener("click", async () => {
-    if (!confirm("Xóa TOÀN BỘ key? Tất cả người dùng sẽ bị chặn.")) return;
-
+    if (!confirm("Xóa TOÀN BỘ key?")) return;
     const store = loadStore();
     let deleted = 0;
-
     for (const item of store) {
         const ok = await deleteKeyFromServer(item.key);
         if (ok) deleted++;
     }
-
     saveStore([]);
     renderTable();
-    alert(`Đã xóa ${deleted}/${store.length} key`);
+    alert(`Đã xóa ${deleted}/${store.length}`);
 });
 
 $search.addEventListener("input", (e) => renderTable(e.target.value));
 
-// ============================================================
-// Chú thích: AUTO REFRESH MỖI 1S
-// ============================================================
 setInterval(() => {
     if ($viewAdmin.style.display !== "none") renderTable($search.value);
 }, 1000);
 
 // ============================================================
-// Chú thích: AUTO SYNC MỖI 10S KHI Ở TAB ADMIN
+// Chú thích: QUẢN LÝ SELLER
 // ============================================================
-setInterval(async () => {
-    if ($viewAdmin.style.display !== "none") {
-        await syncWithServer(true);
+async function loadSellers() {
+    const pass = $adminPass.value.trim();
+    if (!pass) { alert("Nhập mật khẩu admin"); return; }
+
+    try {
+        const form = new FormData();
+        form.append("admin_pass", pass);
+        const r = await fetch(API_SELLERS, { method: "POST", body: form });
+        const j = await r.json();
+
+        if (j.status !== "ok") { alert("Lỗi: " + (j.msg || "unknown")); return; }
+
+        renderSellers(j.sellers, pass);
+        $sellerTotal.textContent = j.count;
+    } catch (e) {
+        alert("Không kết nối server");
     }
-}, SYNC_INTERVAL);
+}
+
+function renderSellers(sellers, pass) {
+    $sellerBody.innerHTML = "";
+    sellers.sort((a, b) => b.createdAt - a.createdAt);
+
+    sellers.forEach((s, idx) => {
+        const tr = document.createElement("tr");
+        const tdStt = document.createElement("td"); tdStt.textContent = idx + 1;
+        const tdUser = document.createElement("td"); tdUser.className = "key-cell"; tdUser.textContent = s.username;
+
+        const tdStatus = document.createElement("td");
+        tdStatus.textContent = s.active ? "HOẠT ĐỘNG" : "ĐÃ KHÓA";
+        tdStatus.className = s.active ? "seller-active" : "seller-disabled";
+
+        const tdQuota = document.createElement("td");
+        tdQuota.textContent = `${s.quotaUsed}/${s.dailyLimit} (còn ${s.quotaRemain})`;
+
+        const tdCreated = document.createElement("td"); tdCreated.textContent = formatTime(s.createdAt);
+
+        const tdAct = document.createElement("td");
+
+        const btnToggle = document.createElement("button");
+        btnToggle.className = "btn-toggle";
+        btnToggle.textContent = s.active ? "KHÓA" : "MỞ";
+        btnToggle.addEventListener("click", async () => {
+            if (!confirm(`Đổi trạng thái seller ${s.username}?`)) return;
+            const form = new FormData();
+            form.append("admin_pass", pass);
+            form.append("username", s.username);
+            const r = await fetch(API_TOGGLE, { method: "POST", body: form });
+            const j = await r.json();
+            if (j.status === "ok") loadSellers();
+            else alert("Lỗi: " + j.msg);
+        });
+
+        const btnKeys = document.createElement("button");
+        btnKeys.className = "btn-keys";
+        btnKeys.textContent = "XEM KEY";
+        btnKeys.addEventListener("click", async () => {
+            const form = new FormData();
+            form.append("admin_pass", pass);
+            form.append("username", s.username);
+            const r = await fetch(API_SELLER_KEYS, { method: "POST", body: form });
+            const j = await r.json();
+            if (j.status === "ok") {
+                let msg = `Seller: ${s.username}\nTổng key: ${j.count}\n\n`;
+                j.keys.slice(0, 20).forEach(k => { msg += k.key + "\n"; });
+                if (j.count > 20) msg += `... và ${j.count - 20} key khác`;
+                alert(msg);
+            } else alert("Lỗi: " + j.msg);
+        });
+
+        const btnDel = document.createElement("button");
+        btnDel.className = "btn-del";
+        btnDel.textContent = "XÓA";
+        btnDel.addEventListener("click", async () => {
+            if (!confirm(`XÓA seller ${s.username} và toàn bộ key?`)) return;
+            const form = new FormData();
+            form.append("admin_pass", pass);
+            form.append("username", s.username);
+            const r = await fetch(API_DEL_SELLER, { method: "POST", body: form });
+            const j = await r.json();
+            if (j.status === "ok") loadSellers();
+            else alert("Lỗi: " + j.msg);
+        });
+
+        tdAct.appendChild(btnToggle);
+        tdAct.appendChild(btnKeys);
+        tdAct.appendChild(btnDel);
+
+        tr.appendChild(tdStt); tr.appendChild(tdUser); tr.appendChild(tdStatus);
+        tr.appendChild(tdQuota); tr.appendChild(tdCreated); tr.appendChild(tdAct);
+        $sellerBody.appendChild(tr);
+    });
+}
+
+$btnLoadSellers.addEventListener("click", loadSellers);
+
+$btnCreateSeller.addEventListener("click", async () => {
+    const pass = $adminPass.value.trim();
+    const user = $newUsername.value.trim().toLowerCase();
+    const pwd  = $newPassword.value.trim();
+
+    if (!pass) { alert("Nhập mật khẩu admin"); return; }
+    if (!user || !pwd) { alert("Nhập đủ username + password"); return; }
+
+    try {
+        const form = new FormData();
+        form.append("admin_pass", pass);
+        form.append("username", user);
+        form.append("password", pwd);
+        const r = await fetch(API_CREATE, { method: "POST", body: form });
+        const j = await r.json();
+
+        if (j.status === "ok") {
+            alert("Tạo seller thành công: " + user);
+            $newUsername.value = "";
+            $newPassword.value = "";
+            loadSellers();
+        } else {
+            alert("Lỗi: " + (j.msg || "unknown"));
+        }
+    } catch (e) {
+        alert("Không kết nối server");
+    }
+});
 
 // ============================================================
-// Chú thích: HIỆU ỨNG CHẤM ĐỎ
+// Chú thích: chấm đỏ
 // ============================================================
 document.addEventListener("click", (e) => {
     const dot = document.createElement("div");
@@ -470,7 +505,4 @@ document.addEventListener("click", (e) => {
     setTimeout(() => dot.remove(), 3000);
 });
 
-// ============================================================
-// Chú thích: KHỞI ĐỘNG
-// ============================================================
 fetchIP();
