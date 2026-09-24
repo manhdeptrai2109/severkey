@@ -16,7 +16,12 @@ const API_SELLER_KEYS = "https://tmanhios.pretty-pilot.workers.dev/admin/seller-
 let currentIP = "unknown";
 let totalCount = 0;
 
+// ============================================================
+// Chú thích: BANG THOI GIAN - da them 6hour
+// ============================================================
 const DURATION_MAP = {
+    21600000:   { prefix: "TManhios-6hour-",   label: "6 GIỜ" },
+    43200000:   { prefix: "TManhios-12hour-",  label: "12 GIỜ" },
     3600000:    { prefix: "TManhios-1hour-",   label: "1 GIỜ" },
     86400000:   { prefix: "TManhios-1day-",    label: "1 NGÀY" },
     604800000:  { prefix: "TManhios-7day-",    label: "7 NGÀY" },
@@ -31,7 +36,11 @@ const RENTAL_UNIT_LABEL = {
     "month":  "tháng"
 };
 
+// ============================================================
+// Chú thích: DOC DURATION TU KEY - uu tien 6hour truoc 1hour
+// ============================================================
 function durationFromKey(key) {
+    if (key.indexOf("-6hour-")  !== -1) return 21600000;
     if (key.indexOf("-12hour-") !== -1) return 43200000;
     if (key.indexOf("-1hour-")  !== -1) return 3600000;
     if (key.indexOf("-1day-")   !== -1) return 86400000;
@@ -189,7 +198,7 @@ $btnGen.addEventListener("click", async () => {
     if (amount > 1000) amount = 1000;
     if (len < 4) len = 4;
     if (len > 64) len = 64;
-    if (isNaN(dur)) dur = 86400000;
+    if (isNaN(dur)) dur = 21600000;
 
     const info = getDurationInfo(dur);
     const keys = genKeys(info.prefix, amount, len);
@@ -595,7 +604,7 @@ $btnCreateSeller.addEventListener("click", async () => {
 });
 
 // ============================================================
-// Chú thích: chấm đỏ
+// Chú thích: chấm đỏ khi click
 // ============================================================
 document.addEventListener("click", (e) => {
     const dot = document.createElement("div");
