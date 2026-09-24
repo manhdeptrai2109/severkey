@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <h1 class="title-glow">TMANHIOS KEY GENERATOR</h1>
-        <p class="subtitle">Format: TManhios-[1hour|1day|7day|1month|forever]-XXXXXXXXXX</p>
+        <p class="subtitle">Format: TManhios-[6hour|12hour|1hour|1day|7day|1month|forever]-XXXXXXXXXX</p>
 
         <div class="tabs">
             <button id="tab-gen" class="tab-btn active">TẠO KEY</button>
@@ -30,8 +30,10 @@
 
                 <label>Loại hạn:</label>
                 <select id="duration">
+                    <option value="21600000" selected>6 Giờ</option>
+                    <option value="43200000">12 Giờ</option>
                     <option value="3600000">1 Giờ</option>
-                    <option value="86400000" selected>1 Ngày</option>
+                    <option value="86400000">1 Ngày</option>
                     <option value="604800000">7 Ngày</option>
                     <option value="2592000000">1 Tháng (30 ngày)</option>
                     <option value="0">Vĩnh viễn</option>
